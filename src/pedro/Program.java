@@ -1,6 +1,7 @@
 package pedro;
 
 import db.DB;
+import db.DBException;
 import db.DbIntegrityException;
 
 import java.sql.*;
@@ -8,40 +9,41 @@ import java.sql.*;
 public class Program {
     public static void main(String[] args) {
 
-        /*
-        * Elementos com chave estrangeira associadas a uma outra chave primária não
-        * podem ser excluidos. Exemplo: Departamentos que possuem vendedores não
-        * podem ser excluidos pois estaria gerando uma falha de integridade referencial.
-        */
-
-        Connection conn;
-        PreparedStatement st = null;
+        Statement st = null;
+        Connection conn = null;
         try {
             conn = DB.getConn();
-            st = conn.prepareStatement(
-                    "DELETE FROM "
-                    +"department WHERE Id = ?"
-            );
+            conn.setAutoCommit(false); // Desabilita a regra de update automático ao banco de dados.
+            st = conn.createStatement();
 
-             /*st = conn.prepareStatement(
-                    "INSERT INTO department (Name) VALUES (?) "
-            ); */
+            int rows1 = st.executeUpdate("UPDATE seller SET BaseSalary = 2090 WHERE DepartmentId = 1");
 
+            /*
+             int x = 1;
+             if(x == 1){
+                throw new SQLException("Fake error");
+            } */
 
-            st.setInt(1, 5);
+            int rows2 = st.executeUpdate("UPDATE seller SET BaseSalary = 3090 WHERE DepartmentId = 2");
 
-            /*st.setString(1,"Teste1"); */
+            conn.commit(); // Cria o update no banco de dados.
 
-            int ra = st.executeUpdate();
+            System.out.println("!rows1 " + rows1);
+            System.out.println("!rows2 " + rows2);
 
-            System.out.println("Done: " + ra);
 
         } catch (SQLException e){
-            throw new DbIntegrityException(e.getMessage());
+            try {
+                // O método .rollback só pode ser chamado quando o método .setAutoCommit estiver false
+                conn.rollback();
+                throw new DBException("Transaction rolled back! " + e.getMessage());
+            } catch (SQLException e1) {
+                e1.printStackTrace();
+            }
+
         } finally {
             DB.closeStatement(st);
             DB.closeConn();
         }
-
     }
 }
